@@ -8,13 +8,16 @@ with 'Pod::Weaver::Role::Section';
 #use Log::Any '$log';
 
 use Moose::Autobox;
+use POSIX;
 
 # VERSION
+# DATE
 
 sub weave_section {
     my ($self, $document, $input) = @_;
 
     # check file
+    my $filename = $input->{filename};
     unless ($filename =~ m!^(lib|bin|scripts?)/(.+)\.(pm|pl|pod)$!) {
         $self->log_debug(["skipped file %s (not a Perl module/script/POD)",
                           $filename]);
@@ -30,9 +33,13 @@ sub weave_section {
         local $/;
         my $content = <$fh>;
 
-        $content =~ /^\s*our \$DATE = '([^']+)'/m or last;
-        $date = $1;
+        if ($content =~ /^\s*our \$DATE = '([^']+)'/m) {
+            $date = $1;
+            last;
+        }
+        $date = POSIX::strftime("%Y-%m-%d", localtime);
     }
+
     unless (defined $date) {
         $self->log_debug(["skipped file %s (no release date defined)",
                           $filename]);
@@ -67,8 +74,8 @@ In your C<weaver.ini>:
 =head1 DESCRIPTION
 
 This section plugin adds a RELEASE DATE section to Perl modules/scripts. Release
-date is taken from module's C<$DATE> package variable (extracted using regexp).
-If the variable is not defined, the section is not added.
+date is taken from module's C<$DATE> package variable (extracted using regexp)
+or, if not available, from the current date.
 
 
 =head1
